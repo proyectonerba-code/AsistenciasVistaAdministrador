@@ -16,7 +16,11 @@ export function obtenerClienteDemo(): SupabaseClient {
 
 /**
  * ¿El modo demo está activo?
+ *
+ * Se recorta el valor: las variables de entorno pueden traer espacios
+ * sobrantes según de dónde vengan (archivo .env, panel de Vercel, o un
+ * `set VAR=1 && ...` en cmd.exe, que deja "1 " con espacio final).
  */
 export function esDemo(): boolean {
-  return process.env.SUPABASE_DEMO === "1";
+  return process.env.SUPABASE_DEMO?.trim() === "1";
 }
