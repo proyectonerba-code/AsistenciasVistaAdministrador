@@ -1,14 +1,18 @@
 /**
  * Lógica para el Reporte General de la semana.
  */
-import { calcularSemana, type ResultadoDia } from "@/lib/motor-horas";
+import { calcularSemana } from "@/lib/motor-horas";
 import {
   fechaLocal,
   ahoraMx,
   diaSemanaNumericoMx,
   sumarDias,
 } from "@/lib/tz";
-import { cargarContexto, calcularDiaDeUsuario } from "./calculo";
+import {
+  cargarContexto,
+  calcularDiaDeUsuario,
+  diasDeSemanaLaboral,
+} from "./calculo";
 import { obtenerLunes } from "./queries";
 import type { EstadoCumplimiento } from "@/components/ui/reporte-tabla";
 
@@ -114,7 +118,11 @@ export async function obtenerReporteSemana(
   const fechaInicio = fechaLocal(lunesAnterior);
   const sabadoActual = new Date(lunes.getTime());
   sabadoActual.setUTCDate(sabadoActual.getUTCDate() + 5);
-  const fechaFin = fechaLocal(sabadoActual);
+  // El rango de carga llega hasta el domingo: una checada en domingo es una
+  // incidencia y el reporte necesita verla.
+  const domingoActual = new Date(lunes.getTime());
+  domingoActual.setUTCDate(lunes.getUTCDate() + 6);
+  const fechaFin = fechaLocal(domingoActual);
 
   const ctx = await cargarContexto(fechaInicio, fechaFin);
   const diasObjetivo = diasLaboralesObjetivo(lunes);
@@ -126,12 +134,8 @@ export async function obtenerReporteSemana(
   let totalFaltas = 0;
 
   for (const usuario of ctx.usuarios) {
-    const dias: ResultadoDia[] = [];
-    for (let d = 0; d < 6; d++) {
-      const dia = new Date(lunes.getTime());
-      dia.setUTCDate(lunes.getUTCDate() + d);
-      dias.push(calcularDiaDeUsuario(ctx, usuario, fechaLocal(dia)));
-    }
+    // Lunes a sábado, más el domingo si hubo registro (incidencia).
+    const dias = diasDeSemanaLaboral(ctx, usuario, lunes);
 
     // Extra traída del sábado anterior.
     const sabadoPrev = new Date(lunesAnterior.getTime());
@@ -168,7 +172,7 @@ export async function obtenerReporteSemana(
       nota = "Sáb. pendiente";
     } else if (tieneIncidenciaDomingo) {
       estado = "INCIDENCIA";
-      nota = "Inc. sábado";
+      nota = "Inc. domingo";
     } else if (diasObjetivo < 6) {
       nota = "Sáb. pendiente";
     }

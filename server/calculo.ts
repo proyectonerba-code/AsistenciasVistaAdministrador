@@ -134,3 +134,39 @@ export function calcularDiaDeUsuario(
     faltaJustificada: falta?.justificada ?? false,
   });
 }
+
+/**
+ * Días que componen la semana de un usuario: lunes a sábado.
+ *
+ * El domingo se añade SOLO si hubo marcas o ajuste manual. Una checada en
+ * domingo es una incidencia (no suma horas ni horas extra, pero se conserva),
+ * y el reporte debe poder mostrarla. En cambio, un domingo sin registros no
+ * es nada: no es falta ni incidencia, y meterlo ensuciaría el reporte de
+ * todas las semanas pasadas.
+ */
+export function diasDeSemanaLaboral(
+  ctx: ContextoCalculo,
+  usuario: Usuario,
+  lunes: Date
+): ResultadoDia[] {
+  const dias: ResultadoDia[] = [];
+
+  for (let d = 0; d < 6; d++) {
+    const dia = new Date(lunes.getTime());
+    dia.setUTCDate(lunes.getUTCDate() + d);
+    dias.push(calcularDiaDeUsuario(ctx, usuario, fechaLocal(dia)));
+  }
+
+  const domingo = new Date(lunes.getTime());
+  domingo.setUTCDate(lunes.getUTCDate() + 6);
+  const fechaDomingo = fechaLocal(domingo);
+
+  const hayMarcasDomingo = (ctx.marcas.get(clave(usuario.id, fechaDomingo)) ?? []).length > 0;
+  const hayAjusteDomingo = ctx.ajustes.has(clave(usuario.id, fechaDomingo));
+
+  if (hayMarcasDomingo || hayAjusteDomingo) {
+    dias.push(calcularDiaDeUsuario(ctx, usuario, fechaDomingo));
+  }
+
+  return dias;
+}

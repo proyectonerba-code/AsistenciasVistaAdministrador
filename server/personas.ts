@@ -2,9 +2,13 @@
  * Lógica para /admin/personas/[id]: bloques por semana (lunes a sábado),
  * con la semana más reciente arriba.
  */
-import { calcularSemana, type ResultadoDia } from "@/lib/motor-horas";
+import { calcularSemana } from "@/lib/motor-horas";
 import { minutosAHHMM, fechaLocal, ahoraMx } from "@/lib/tz";
-import { cargarContexto, calcularDiaDeUsuario } from "./calculo";
+import {
+  cargarContexto,
+  calcularDiaDeUsuario,
+  diasDeSemanaLaboral,
+} from "./calculo";
 import { obtenerLunes, obtenerUsuarioPorId, type Usuario } from "./queries";
 import { obtenerUsuarios } from "./queries-admin";
 
@@ -89,8 +93,10 @@ export async function obtenerSemanasDePersona(
 
   const fechaInicio = fechaLocal(luneses[0]);
   const ultimoLunes = luneses[luneses.length - 1];
+  // La carga llega hasta el domingo de la última semana: una checada en
+  // domingo es una incidencia y debe verse en la ficha.
   const finLunes = new Date(ultimoLunes.getTime());
-  finLunes.setUTCDate(finLunes.getUTCDate() + 5); // sábado
+  finLunes.setUTCDate(finLunes.getUTCDate() + 6); // domingo
   const fechaFin = fechaLocal(finLunes);
 
   const ctx = await cargarContexto(fechaInicio, fechaFin);
@@ -99,14 +105,9 @@ export async function obtenerSemanasDePersona(
 
   for (let i = 0; i < luneses.length; i++) {
     const lunes = luneses[i];
-    const dias: ResultadoDia[] = [];
 
-    for (let d = 0; d < 6; d++) {
-      const dia = new Date(lunes.getTime());
-      dia.setUTCDate(lunes.getUTCDate() + d);
-      const fecha = fechaLocal(dia);
-      dias.push(calcularDiaDeUsuario(ctx, usuario, fecha));
-    }
+    // Lunes a sábado, más el domingo si hubo registro (incidencia).
+    const dias = diasDeSemanaLaboral(ctx, usuario, lunes);
 
     // Extra traída del sábado de la semana anterior.
     let extraTraida = 0;
