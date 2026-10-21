@@ -3,7 +3,7 @@
  * Todas las entradas se validan con zod.
  */
 import { supabaseAdmin } from "@/lib/supabase/server";
-import { fechaLocal } from "@/lib/tz";
+import { fechaLocal, inicioDiaMx, finDiaMx } from "@/lib/tz";
 import type { HorarioArea } from "@/lib/motor-horas";
 import { z } from "zod";
 
@@ -202,15 +202,8 @@ export async function obtenerMarcasPorUsuarioFecha(
   const validado = FechaSchema.safeParse(fecha);
   if (!validado.success) return [];
 
-  const inicio = new Date(
-    Date.UTC(
-      Number(fecha.slice(0, 4)),
-      Number(fecha.slice(5, 7)) - 1,
-      Number(fecha.slice(8, 10)),
-      0, 0, 0, 0
-    )
-  );
-  const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const inicio = inicioDiaMx(fecha);
+  const fin = finDiaMx(fecha);
 
   const { data, error } = await supabaseAdmin
     .from("marcas")
@@ -293,22 +286,8 @@ export async function obtenerMarcasRango(
   const finValida = FechaSchema.safeParse(fechaFin);
   if (!inicioValida.success || !finValida.success) return [];
 
-  const inicio = new Date(
-    Date.UTC(
-      Number(fechaInicio.slice(0, 4)),
-      Number(fechaInicio.slice(5, 7)) - 1,
-      Number(fechaInicio.slice(8, 10)),
-      0, 0, 0, 0
-    )
-  );
-  const fin = new Date(
-    Date.UTC(
-      Number(fechaFin.slice(0, 4)),
-      Number(fechaFin.slice(5, 7)) - 1,
-      Number(fechaFin.slice(8, 10)),
-      23, 59, 59, 999
-    )
-  );
+  const inicio = inicioDiaMx(fechaInicio);
+  const fin = finDiaMx(fechaFin);
 
   const { data, error } = await supabaseAdmin
     .from("marcas")
