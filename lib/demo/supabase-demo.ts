@@ -16,7 +16,8 @@ type Filtro =
   | { op: "gte"; col: string; val: unknown }
   | { op: "lte"; col: string; val: unknown }
   | { op: "gt"; col: string; val: unknown }
-  | { op: "lt"; col: string; val: unknown };
+  | { op: "lt"; col: string; val: unknown }
+  | { op: "in"; col: string; val: unknown[] };
 
 interface TablasDemo {
   usuarios: Fila[];
@@ -29,6 +30,7 @@ interface TablasDemo {
   rechazados: Fila[];
   bitacora: Fila[];
   admins: Fila[];
+  dispositivos: Fila[];
 }
 
 export interface ResultadoDemo<T> {
@@ -75,6 +77,10 @@ function cumple(fila: Fila, filtros: Filtro[]): boolean {
         if (valor === null || valor === undefined) return false;
         if (comparar(valor, f.val) >= 0) return false;
         break;
+      case "in":
+        if (!Array.isArray(f.val)) return false;
+        if (!f.val.some((v) => String(v) === String(valor))) return false;
+        break;
     }
   }
   return true;
@@ -94,6 +100,7 @@ export function crearSupabaseDemo(datos: {
   horarios_especiales?: object[];
   rechazados?: object[];
   bitacora?: object[];
+  dispositivos?: object[];
 }): { cliente: unknown; tablas: TablasDemo } {
   const aFilas = (filas: object[]): Fila[] => filas.map((f) => ({ ...f }));
 
@@ -106,8 +113,9 @@ export function crearSupabaseDemo(datos: {
     config: aFilas(datos.config),
     faltas: aFilas(datos.faltas),
     rechazados: aFilas(datos.rechazados ?? []),
-    bitacora: aFilas(datos.bitacora ?? []),
-    admins: aFilas(datos.admins),
+      bitacora: aFilas(datos.bitacora ?? []),
+      admins: aFilas(datos.admins),
+      dispositivos: aFilas(datos.dispositivos ?? []),
   };
 
   let contador = 0;
@@ -180,6 +188,10 @@ export function crearSupabaseDemo(datos: {
       filtros.push({ op: "lt", col, val });
       return builder;
     };
+    builder.in = (col: string, valores: unknown[]) => {
+      filtros.push({ op: "in", col, val: valores });
+      return builder;
+    };
     builder.order = (col: string, opts?: { ascending?: boolean }) => {
       orden = { col, asc: opts?.ascending !== false };
       return builder;
@@ -226,6 +238,7 @@ export function crearSupabaseDemo(datos: {
     ): unknown => {
       try {
         if (modo === "insert" || modo === "upsert") {
+          let insertada: Fila | null = null;
           for (const val of datosInsert) {
             const fila: Fila = { ...val };
             if (!fila.id) fila.id = nuevoUuid();
@@ -237,10 +250,17 @@ export function crearSupabaseDemo(datos: {
               );
               if (existente) {
                 Object.assign(existente, fila);
+                insertada = existente;
                 continue;
               }
             }
             filas.push(fila);
+            insertada = fila;
+          }
+          // El codigo real encadena .insert(...).select(...).single(): en
+          // ese caso hay que devolver la fila recien insertada.
+          if (single && insertada) {
+            return resolve({ data: insertada, error: null });
           }
           return resolve({ data: null, error: null });
         }

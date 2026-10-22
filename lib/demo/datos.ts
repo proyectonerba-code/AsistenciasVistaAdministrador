@@ -107,6 +107,18 @@ export interface AdminDemo {
   creado_en: string;
 }
 
+export interface DispositivoDemo {
+  id: string;
+  usuario_id: string;
+  huella: string;
+  etiqueta: string | null;
+  agente: string | null;
+  primera_marca: string;
+  ultima_marca: string;
+  veces: number;
+  activo: boolean;
+}
+
 export interface DatosDemo {
   usuarios: UsuarioDemo[];
   sedes: SedeDemo[];
@@ -116,6 +128,7 @@ export interface DatosDemo {
   horarios_especiales: HorarioEspecialDemo[];
   rechazados: RechazadoDemo[];
   admins: AdminDemo[];
+  dispositivos: DispositivoDemo[];
   config: { clave: string; valor: unknown; descripcion: string | null }[];
 }
 
@@ -574,6 +587,33 @@ export function crearDatosDemo(semilla = 20260608): DatosDemo {
     { correo: "marionly420@gmail.com", rol: "admin", creado_en: hoy.toISOString() },
   ];
 
+  // Dispositivos de demostracion: el telefono de los primeros dos
+  // colaboradores, con la huella del navegador y cuantas veces checaron.
+  const dispositivos: DispositivoDemo[] = [
+    {
+      id: nuevoId(),
+      usuario_id: usuarios[0].id,
+      huella: "demo-huella-jesus-0001",
+      etiqueta: "iPhone de Jesús",
+      agente: "iPhone; CPU iPhone OS 17 like Mac OS X",
+      primera_marca: new Date(hoy.getTime() - 30 * 86400000).toISOString(),
+      ultima_marca: new Date(hoy.getTime() - 45 * 60000).toISOString(),
+      veces: 42,
+      activo: true,
+    },
+    {
+      id: nuevoId(),
+      usuario_id: usuarios[1].id,
+      huella: "demo-huella-blanca-0002",
+      etiqueta: "Pixel de Blanca",
+      agente: "Mozilla/5.0 (Linux; Android 14)",
+      primera_marca: new Date(hoy.getTime() - 12 * 86400000).toISOString(),
+      ultima_marca: new Date(hoy.getTime() - 3 * 3600000).toISOString(),
+      veces: 17,
+      activo: true,
+    },
+  ];
+
   return {
     usuarios,
     sedes,
@@ -583,6 +623,7 @@ export function crearDatosDemo(semilla = 20260608): DatosDemo {
     horarios_especiales: horariosEspeciales,
     rechazados,
     admins,
+    dispositivos,
     config,
   };
 }
@@ -590,7 +631,12 @@ export function crearDatosDemo(semilla = 20260608): DatosDemo {
 /** Contraseña del modo demo. */
 export const PASSWORD_DEMO = "demo1234";
 
-/** ¿El modo demo está activo? */
+/**
+ * ¿El modo demo está activo?
+ *
+ * Se recorta el valor: las variables de entorno pueden traer espacios
+ * sobrantes (por ejemplo "1 " en cmd.exe con "set VAR=1 && ...").
+ */
 export function esDemoActivo(): boolean {
-  return process.env.SUPABASE_DEMO === "1";
+  return process.env.SUPABASE_DEMO?.trim() === "1";
 }
