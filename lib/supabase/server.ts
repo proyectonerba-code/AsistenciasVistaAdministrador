@@ -10,8 +10,9 @@ import { esDemo, obtenerClienteDemo } from "@/lib/demo/cliente";
 let cliente: SupabaseClient;
 
 if (esDemo()) {
+  // El cliente demo es un singleton del proceso (ver lib/demo/cliente.ts):
+  // el server action y la página comparten la misma base en memoria.
   cliente = obtenerClienteDemo();
-  console.log("[demo] Admin usando Supabase simulado en memoria (SUPABASE_DEMO=1)");
 } else {
   const url = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;

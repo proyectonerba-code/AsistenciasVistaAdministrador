@@ -7,6 +7,7 @@
  */
 import { supabaseAdmin } from "@/lib/supabase/server";
 import { fechaLocal, inicioDiaMx, finDiaMx } from "@/lib/tz";
+import { aHHmm } from "./queries-real";
 import { z } from "zod";
 
 const FechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha YYYY-MM-DD");
@@ -25,6 +26,15 @@ export interface UsuarioAdmin {
   etiquetaNfc: string | null;
   tokenPrefijo: string | null;
   activo: boolean;
+  /** Jornada propia de lunes a viernes. null = hereda el horario del área. */
+  jornadaInicio: string | null;
+  jornadaFin: string | null;
+  /** null = hereda el área; true = trabaja los sábados; false = descanso. */
+  sabadoTrabaja: boolean | null;
+  sabadoInicio: string | null;
+  sabadoFin: string | null;
+  /** Minutos de receso el sábado. 0 = sin receso. */
+  sabadoMinutosComida: number;
 }
 
 /**
@@ -36,7 +46,7 @@ export async function obtenerUsuarios(
   let q = supabaseAdmin
     .from("usuarios")
     .select(
-      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, token_prefijo, activo"
+      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, token_prefijo, activo, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
     )
     .order("nombre");
 
@@ -55,6 +65,12 @@ export async function obtenerUsuarios(
     etiquetaNfc: u.etiqueta_nfc ?? null,
     tokenPrefijo: u.token_prefijo ?? null,
     activo: u.activo !== false,
+    jornadaInicio: aHHmm(u.jornada_inicio),
+    jornadaFin: aHHmm(u.jornada_fin),
+    sabadoTrabaja: u.sabado_trabaja ?? null,
+    sabadoInicio: aHHmm(u.sabado_inicio),
+    sabadoFin: aHHmm(u.sabado_fin),
+    sabadoMinutosComida: u.sabado_minutos_comida ?? 0,
   }));
 }
 

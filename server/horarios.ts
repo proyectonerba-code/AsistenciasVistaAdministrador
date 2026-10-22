@@ -20,12 +20,32 @@ export interface JornadaColaborador {
   /** Hora de inicio y fin por separado (para editar). */
   lvInicio: string;
   lvFin: string;
+  /** De dónde sale la jornada de lunes a viernes. */
+  origenLv: "área" | "colaborador" | "horario especial";
+  /** Jornada propia del colaborador (null = hereda el área). */
+  jornadaInicio: string | null;
+  jornadaFin: string | null;
+  /** null = hereda el área; true = trabaja los sábados; false = descanso. */
+  sabadoTrabaja: boolean | null;
   /** Reglas especiales que aplican a esta persona (lunes a viernes). */
   tieneEspeciales: boolean;
   sabado: string;
   sabadoInicio: string;
   sabadoFin: string;
   sabadoDescanso: boolean;
+  /** Minutos de receso el sábado (0 = sin receso). */
+  sabadoMinutosComida: number;
+  /** De dónde sale la jornada del sábado. */
+  origenSabado: "área" | "sábado" | "colaborador" | "horario especial";
+  /** Jornada que aplican las reglas especiales vigentes (si las hay). */
+  especialLunesAViernes: string | null;
+  especialSabado: string | null;
+  /** Horario por defecto del área (lo que hereda si no define el suyo). */
+  areaInicio: string;
+  areaFin: string;
+  areaSabadoInicio: string;
+  areaSabadoFin: string;
+  areaSabadoDescanso: boolean;
 }
 
 export interface HorariosColaboradores {
@@ -71,6 +91,15 @@ export async function obtenerJornadasColaboradores(
 
     let lvInicio = area.inicio;
     let lvFin = area.fin;
+    let origenLv: JornadaColaborador["origenLv"] = "área";
+
+    // La jornada propia del colaborador pisa al horario del área.
+    if (u.jornadaInicio || u.jornadaFin) {
+      lvInicio = u.jornadaInicio ?? area.inicio;
+      lvFin = u.jornadaFin ?? area.fin;
+      origenLv = "colaborador";
+    }
+
     if (lv.length > 0) {
       // Si hay varias, gana la más reciente por "vigente desde".
       const masReciente = [...lv].sort((a, b) =>
@@ -78,21 +107,55 @@ export async function obtenerJornadasColaboradores(
       )[0];
       lvInicio = String(masReciente.entrada).slice(0, 5);
       lvFin = String(masReciente.salida).slice(0, 5);
+      origenLv = "horario especial";
     }
 
     let sabadoInicio = config.horarioSabado.inicio;
     let sabadoFin = config.horarioSabado.fin;
     let sabadoDescanso = false;
+    let origenSabado: JornadaColaborador["origenSabado"] = "sábado";
 
-    if (sab) {
+    // Defaults del área: lo que hereda el colaborador si no define lo suyo.
+    const areaSabadoInicio =
+      area.sabado && typeof area.sabado === "object"
+        ? area.sabado.inicio
+        : config.horarioSabado.inicio;
+    const areaSabadoFin =
+      area.sabado && typeof area.sabado === "object"
+        ? area.sabado.fin
+        : config.horarioSabado.fin;
+    const areaSabadoDescanso = area.sabado === null;
+
+    if (u.sabadoTrabaja === false) {
+      sabadoDescanso = true;
+      origenSabado = "colaborador";
+    } else if (u.sabadoTrabaja === true && u.sabadoInicio && u.sabadoFin) {
+      sabadoInicio = u.sabadoInicio;
+      sabadoFin = u.sabadoFin;
+      origenSabado = "colaborador";
+    } else if (sab) {
       sabadoInicio = String(sab.entrada).slice(0, 5);
       sabadoFin = String(sab.salida).slice(0, 5);
+      origenSabado = "horario especial";
     } else if (area.sabado === null) {
       sabadoDescanso = true;
     } else if (area.sabado && typeof area.sabado === "object") {
       sabadoInicio = area.sabado.inicio;
       sabadoFin = area.sabado.fin;
     }
+
+    // Las reglas especiales vigentes: son las que mandan sobre todo lo demás.
+    const masRecienteLv = [...lv].sort((a, b) =>
+      String(b.vigente_desde).localeCompare(String(a.vigente_desde))
+    )[0];
+    const especialLunesAViernes = masRecienteLv
+      ? `${String(masRecienteLv.entrada).slice(0, 5)} - ${String(
+          masRecienteLv.salida
+        ).slice(0, 5)}`
+      : null;
+    const especialSabado = sab
+      ? `${String(sab.entrada).slice(0, 5)} - ${String(sab.salida).slice(0, 5)}`
+      : null;
 
     return {
       usuarioId: u.id,
@@ -103,11 +166,24 @@ export async function obtenerJornadasColaboradores(
       lunesAViernes: `${lvInicio} - ${lvFin}`,
       lvInicio,
       lvFin,
+      origenLv,
+      jornadaInicio: u.jornadaInicio,
+      jornadaFin: u.jornadaFin,
+      sabadoTrabaja: u.sabadoTrabaja,
+      sabadoMinutosComida: u.sabadoMinutosComida,
       tieneEspeciales: lv.length > 0 || !!sab,
       sabado: sabadoDescanso ? "Descanso" : `${sabadoInicio} - ${sabadoFin}`,
       sabadoInicio,
       sabadoFin,
       sabadoDescanso,
+      origenSabado,
+      especialLunesAViernes,
+      especialSabado,
+      areaInicio: area.inicio,
+      areaFin: area.fin,
+      areaSabadoInicio,
+      areaSabadoFin,
+      areaSabadoDescanso,
     };
   });
 

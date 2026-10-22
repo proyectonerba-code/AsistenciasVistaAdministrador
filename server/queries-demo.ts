@@ -3,8 +3,11 @@
  * Misma API que queries-real.ts para poder intercambiarlas sin tocar la lógica.
  */
 import { obtenerClienteDemo } from "@/lib/demo/cliente";
-import { fechaLocal } from "@/lib/tz";
+import { fechaLocal, inicioDiaMx, finDiaMx } from "@/lib/tz";
 import type { HorarioArea } from "@/lib/motor-horas";
+// Se reusa el tipo y el mapper de queries-real.ts: el modo demo debe
+// devolver exactamente la misma forma que el modo real.
+import { mapUsuario, type Usuario } from "./queries-real";
 import { z } from "zod";
 
 const supabaseAdmin = obtenerClienteDemo();
@@ -19,40 +22,20 @@ const UuidSchema = z.string().uuid("ID inválido");
 /* Usuarios                                                              */
 /* ===================================================================== */
 
-export interface Usuario {
-  id: string;
-  nombre: string;
-  correo: string;
-  area: "Oficina" | "Técnico" | "Sin asignar";
-  minutosComida: number;
-  legajo: number | null;
-  etiquetaNfc: string | null;
-  activo: boolean;
-  tokenPrefijo?: string | null;
-}
+export type { Usuario };
 
 export async function obtenerUsuariosActivos(): Promise<Usuario[]> {
   const { data, error } = await supabaseAdmin
     .from("usuarios")
     .select(
-      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo"
+      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
     )
     .eq("activo", true)
     .order("nombre");
 
   if (error) throw new Error(`Error obteniendo usuarios: ${error.message}`);
 
-  return (data ?? []).map((u) => ({
-    id: u.id,
-    nombre: u.nombre,
-    correo: u.correo,
-    area: u.area as Usuario["area"],
-    minutosComida: u.minutos_comida ?? 60,
-    legajo: u.legajo ?? null,
-    etiquetaNfc: u.etiqueta_nfc ?? null,
-    activo: u.activo,
-    tokenPrefijo: u.token_prefijo ?? null,
-  }));
+  return (data ?? []).map((u) => mapUsuario(u));
 }
 
 export async function obtenerUsuarioPorId(id: string): Promise<Usuario | null> {
@@ -62,24 +45,14 @@ export async function obtenerUsuarioPorId(id: string): Promise<Usuario | null> {
   const { data, error } = await supabaseAdmin
     .from("usuarios")
     .select(
-      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo"
+      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
     )
     .eq("id", id)
     .single();
 
   if (error || !data) return null;
 
-  return {
-    id: data.id,
-    nombre: data.nombre,
-    correo: data.correo,
-    area: data.area as Usuario["area"],
-    minutosComida: data.minutos_comida ?? 60,
-    legajo: data.legajo ?? null,
-    etiquetaNfc: data.etiqueta_nfc ?? null,
-    activo: data.activo,
-    tokenPrefijo: data.token_prefijo ?? null,
-  };
+  return mapUsuario(data);
 }
 
 /* ===================================================================== */
@@ -204,15 +177,8 @@ export async function obtenerMarcasPorUsuarioFecha(
   const validado = FechaSchema.safeParse(fecha);
   if (!validado.success) return [];
 
-  const inicio = new Date(
-    Date.UTC(
-      Number(fecha.slice(0, 4)),
-      Number(fecha.slice(5, 7)) - 1,
-      Number(fecha.slice(8, 10)),
-      0, 0, 0, 0
-    )
-  );
-  const fin = new Date(inicio.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const inicio = inicioDiaMx(fecha);
+  const fin = finDiaMx(fecha);
 
   const { data, error } = await supabaseAdmin
     .from("marcas")
@@ -295,22 +261,8 @@ export async function obtenerMarcasRango(
   const finValida = FechaSchema.safeParse(fechaFin);
   if (!inicioValida.success || !finValida.success) return [];
 
-  const inicio = new Date(
-    Date.UTC(
-      Number(fechaInicio.slice(0, 4)),
-      Number(fechaInicio.slice(5, 7)) - 1,
-      Number(fechaInicio.slice(8, 10)),
-      0, 0, 0, 0
-    )
-  );
-  const fin = new Date(
-    Date.UTC(
-      Number(fechaFin.slice(0, 4)),
-      Number(fechaFin.slice(5, 7)) - 1,
-      Number(fechaFin.slice(8, 10)),
-      23, 59, 59, 999
-    )
-  );
+  const inicio = inicioDiaMx(fechaInicio);
+  const fin = finDiaMx(fechaFin);
 
   const { data, error } = await supabaseAdmin
     .from("marcas")
