@@ -1,0 +1,18 @@
+{
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/admin/empleados/csv/route": "app/api/admin/empleados/csv/route.js",
+  "/api/admin/reporte/excel/route": "app/api/admin/reporte/excel/route.js",
+  "/api/debug/route": "app/api/debug/route.js",
+  "/api/admin/reporte/pdf/route": "app/api/admin/reporte/pdf/route.js",
+  "/admin/login/page": "app/admin/login/page.js",
+  "/admin/(protegido)/asistencia/page": "app/admin/(protegido)/asistencia/page.js",
+  "/admin/(protegido)/dispositivos/page": "app/admin/(protegido)/dispositivos/page.js",
+  "/admin/page": "app/admin/page.js",
+  "/admin/(protegido)/rechazados/page": "app/admin/(protegido)/rechazados/page.js",
+  "/admin/(protegido)/personas/[id]/page": "app/admin/(protegido)/personas/[id]/page.js",
+  "/admin/(protegido)/empleados/page": "app/admin/(protegido)/empleados/page.js",
+  "/admin/(protegido)/dia/page": "app/admin/(protegido)/dia/page.js",
+  "/admin/(protegido)/pendientes/page": "app/admin/(protegido)/pendientes/page.js",
+  "/admin/(protegido)/horarios/page": "app/admin/(protegido)/horarios/page.js",
+  "/admin/(protegido)/reporte/page": "app/admin/(protegido)/reporte/page.js"
+}

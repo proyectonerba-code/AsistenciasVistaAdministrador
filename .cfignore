@@ -1,0 +1,39 @@
+# Cloudflare Pages ignore file
+# Exclude large files and cache directories
+
+cache/
+.next/cache/
+.next/server-production/0.pack
+.next/server-production/*.pack
+*.pack
+*.pack.gz
+
+# Node modules
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# TypeScript cache
+*.tsbuildinfo
