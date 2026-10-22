@@ -1,0 +1,27 @@
+# Configuración de Netlify para el panel de administración.
+#
+# Netlify detecta Next.js automáticamente, pero se declara el plugin
+# explícitamente para que la installation sea reproducible.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  # Las variables NEXT_PUBLIC_* se incrustan en el BUILD: deben estar
+  # definidas en Site settings > Environment variables ANTES de desplegar.
+  #   NEXT_PUBLIC_SUPABASE_URL = https://tuproyecto.supabase.co
+  #   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJ...
+  #   NEXT_PUBLIC_REGISTRO_URL  = https://tu-registro.netlify.app
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Cabeceras de seguridad básicas para el panel.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

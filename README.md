@@ -147,11 +147,19 @@ lib/demo/                     Supabase simulado (modo demo)
 
 ---
 
-## Despliegue (Vercel)
+## Despliegue (Vercel o Netlify)
 
 ```bash
 vercel --prod
+# o
+npx netlify deploy --prod
 ```
 
 Variables: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
 `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_REGISTRO_URL`.
+
+> 🔴 `NEXT_PUBLIC_*` se incrusta en el **build**: defínela antes de desplegar
+> y vuelve a desplegar si la cambias.
+
+La guía completa (los 3 repos, orden de despliegue y lista de verificación)
+está en `GUIA-DESPLIEGUE.md`.
