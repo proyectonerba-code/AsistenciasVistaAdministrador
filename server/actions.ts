@@ -56,6 +56,51 @@ const SedeSchema = z.object({
   activa: z.boolean(),
 });
 
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const HorarioColaboradorSchema = z
+  .object({
+    usuarioId: z.string().uuid(),
+    area: z.enum(["Oficina", "Técnico", "Sin asignar"]),
+    minutosComida: z.coerce.number().int().min(0).max(240),
+    jornadaInicio: z.string().regex(HHMM, "Hora de entrada inválida (HH:mm)"),
+    jornadaFin: z.string().regex(HHMM, "Hora de salida inválida (HH:mm)"),
+    sabadoTrabaja: z.boolean(),
+    sabadoInicio: z
+      .string()
+      .regex(HHMM, "Hora de entrada del sábado inválida (HH:mm)")
+      .nullable(),
+    sabadoFin: z
+      .string()
+      .regex(HHMM, "Hora de salida del sábado inválida (HH:mm)")
+      .nullable(),
+    sabadoMinutosComida: z.coerce.number().int().min(0).max(240),
+  })
+  .superRefine((d, ctx) => {
+    if (d.jornadaFin <= d.jornadaInicio) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jornadaFin"],
+        message: "La salida no puede ser anterior a la entrada.",
+      });
+    }
+    if (d.sabadoTrabaja) {
+      if (!d.sabadoInicio || !d.sabadoFin) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sabadoInicio"],
+          message: "Si trabaja los sábados, define la hora de entrada y de salida.",
+        });
+      } else if (d.sabadoFin <= d.sabadoInicio) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sabadoFin"],
+          message: "La salida del sábado no puede ser anterior a la entrada.",
+        });
+      }
+    }
+  });
+
 export interface ResultadoAccion {
   ok?: boolean;
   error?: string;
@@ -475,6 +520,81 @@ export async function eliminarHorarioEspecial(
     id,
     existente,
     null
+  );
+
+  return { ok: true };
+}
+
+/* ===================================================================== */
+/* Jornada por colaborador                                                */
+/* ===================================================================== */
+
+/**
+ * Guarda la jornada de un colaborador: tipo de empleado, horario de lunes a
+ * viernes, receso y horario del sábado.
+ *
+ * Solo admin. Escribe bitácora con los valores antes/después.
+ */
+export async function guardarHorarioColaborador(
+  params: z.input<typeof HorarioColaboradorSchema>
+): Promise<ResultadoAccion> {
+  const sesion = await requireAdminDesdeCookies();
+
+  const validado = HorarioColaboradorSchema.safeParse(params);
+  if (!validado.success) {
+    return {
+      error: validado.error.errors.map((e) => e.message).join(". "),
+    };
+  }
+
+  const d = validado.data;
+
+  const { data: existente } = await supabaseAdmin
+    .from("usuarios")
+    .select(
+      "id, nombre, area, minutos_comida, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
+    )
+    .eq("id", d.usuarioId)
+    .maybeSingle();
+
+  if (!existente) return { error: "Colaborador no encontrado." };
+
+  const antes = {
+    area: existente.area,
+    minutos_comida: existente.minutos_comida,
+    jornada_inicio: existente.jornada_inicio ?? null,
+    jornada_fin: existente.jornada_fin ?? null,
+    sabado_trabaja: existente.sabado_trabaja ?? null,
+    sabado_inicio: existente.sabado_inicio ?? null,
+    sabado_fin: existente.sabado_fin ?? null,
+    sabado_minutos_comida: existente.sabado_minutos_comida ?? 0,
+  };
+
+  const payload = {
+    area: d.area,
+    minutos_comida: d.minutosComida,
+    jornada_inicio: d.jornadaInicio,
+    jornada_fin: d.jornadaFin,
+    sabado_trabaja: d.sabadoTrabaja,
+    sabado_inicio: d.sabadoTrabaja ? d.sabadoInicio : null,
+    sabado_fin: d.sabadoTrabaja ? d.sabadoFin : null,
+    sabado_minutos_comida: d.sabadoMinutosComida,
+  };
+
+  const { error } = await supabaseAdmin
+    .from("usuarios")
+    .update(payload)
+    .eq("id", d.usuarioId);
+
+  if (error) return { error: "No se pudo guardar el horario." };
+
+  await escribirBitacora(
+    sesion.correo,
+    "actualizar_horario_colaborador",
+    "usuarios",
+    d.usuarioId,
+    antes,
+    payload
   );
 
   return { ok: true };

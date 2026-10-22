@@ -37,6 +37,12 @@ const USUARIO: Usuario = {
   legajo: 1042,
   etiquetaNfc: "NFC-1000-A",
   activo: true,
+  jornadaInicio: null,
+  jornadaFin: null,
+  sabadoTrabaja: null,
+  sabadoInicio: null,
+  sabadoFin: null,
+  sabadoMinutosComida: 0,
 };
 
 const CONFIG = {

@@ -20,6 +20,14 @@ export interface UsuarioDemo {
   token_prefijo: string | null;
   activo: boolean;
   creado_en: string;
+  /** Jornada propia de lunes a viernes (null = hereda la del área). */
+  jornada_inicio?: string | null;
+  jornada_fin?: string | null;
+  /** null = hereda el área; true = trabaja los sábados; false = descanso. */
+  sabado_trabaja?: boolean | null;
+  sabado_inicio?: string | null;
+  sabado_fin?: string | null;
+  sabado_minutos_comida?: number;
 }
 
 export interface SedeDemo {
@@ -197,6 +205,42 @@ function yaPaso(fecha: string, hora: number, minuto: number): boolean {
   return instante.getTime() <= Date.now();
 }
 
+/**
+ * Jornadas propias de demostración (para ver el modal "Configurar Horario"
+ * con datos reales). El resto hereda el horario de su área.
+ */
+const JORNADAS_DEMO: Record<
+  string,
+  Pick<
+    UsuarioDemo,
+    | "jornada_inicio"
+    | "jornada_fin"
+    | "sabado_trabaja"
+    | "sabado_inicio"
+    | "sabado_fin"
+    | "sabado_minutos_comida"
+  >
+> = {
+  // Colaborador con jornada de lunes a viernes propia (sin reglas especiales).
+  "luna.munoz@gmail.com": {
+    jornada_inicio: "08:00:00",
+    jornada_fin: "16:00:00",
+    sabado_trabaja: null,
+    sabado_inicio: null,
+    sabado_fin: null,
+    sabado_minutos_comida: 0,
+  },
+  // Colaborador que sí trabaja los sábados, con receso propio.
+  "antonio.perez@gmail.com": {
+    jornada_inicio: null,
+    jornada_fin: null,
+    sabado_trabaja: true,
+    sabado_inicio: "09:00:00",
+    sabado_fin: "14:00:00",
+    sabado_minutos_comida: 30,
+  },
+};
+
 const NOMBRES = [
   ["Jesus Guadarrama", "jesus.guadarrama@gmail.com", "Oficina", 1042],
   ["Blanca Lopez Castro", "blanca.lopez@gmail.com", "Oficina", 874],
@@ -237,6 +281,7 @@ export function crearDatosDemo(semilla = 20260608): DatosDemo {
     token_prefijo: (TOKENS_DEMO[n[1]] ?? "").slice(0, 4) || null,
     activo: true,
     creado_en: hoy.toISOString(),
+    ...JORNADAS_DEMO[n[1]],
   }));
 
   const sedes: SedeDemo[] = [

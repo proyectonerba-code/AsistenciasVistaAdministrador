@@ -27,20 +27,42 @@ export interface Usuario {
   etiquetaNfc: string | null;
   activo: boolean;
   tokenPrefijo?: string | null;
+  /** Jornada propia de lunes a viernes. null = hereda el horario del área. */
+  jornadaInicio: string | null;
+  jornadaFin: string | null;
+  /** null = hereda el área; true = trabaja los sábados; false = descanso. */
+  sabadoTrabaja: boolean | null;
+  sabadoInicio: string | null;
+  sabadoFin: string | null;
+  /** Minutos de receso el sábado. 0 = sin receso. */
+  sabadoMinutosComida: number;
 }
 
-export async function obtenerUsuariosActivos(): Promise<Usuario[]> {
-  const { data, error } = await supabaseAdmin
-    .from("usuarios")
-    .select(
-      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo"
-    )
-    .eq("activo", true)
-    .order("nombre");
+/** Postgres devuelve TIME como "09:00:00"; el panel usa "09:00". */
+export function aHHmm(valor: unknown): string | null {
+  if (typeof valor !== "string" || valor.trim() === "") return null;
+  return valor.slice(0, 5);
+}
 
-  if (error) throw new Error(`Error obteniendo usuarios: ${error.message}`);
-
-  return (data ?? []).map((u) => ({
+/** Mapea una fila de `usuarios` al tipo Usuario. */
+export function mapUsuario(u: {
+  id: string;
+  nombre: string;
+  correo: string;
+  area: string;
+  minutos_comida?: number | null;
+  legajo?: number | null;
+  etiqueta_nfc?: string | null;
+  activo: boolean;
+  token_prefijo?: string | null;
+  jornada_inicio?: string | null;
+  jornada_fin?: string | null;
+  sabado_trabaja?: boolean | null;
+  sabado_inicio?: string | null;
+  sabado_fin?: string | null;
+  sabado_minutos_comida?: number | null;
+}): Usuario {
+  return {
     id: u.id,
     nombre: u.nombre,
     correo: u.correo,
@@ -50,7 +72,27 @@ export async function obtenerUsuariosActivos(): Promise<Usuario[]> {
     etiquetaNfc: u.etiqueta_nfc ?? null,
     activo: u.activo,
     tokenPrefijo: u.token_prefijo ?? null,
-  }));
+    jornadaInicio: aHHmm(u.jornada_inicio),
+    jornadaFin: aHHmm(u.jornada_fin),
+    sabadoTrabaja: u.sabado_trabaja ?? null,
+    sabadoInicio: aHHmm(u.sabado_inicio),
+    sabadoFin: aHHmm(u.sabado_fin),
+    sabadoMinutosComida: u.sabado_minutos_comida ?? 0,
+  };
+}
+
+export async function obtenerUsuariosActivos(): Promise<Usuario[]> {
+  const { data, error } = await supabaseAdmin
+    .from("usuarios")
+    .select(
+      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
+    )
+    .eq("activo", true)
+    .order("nombre");
+
+  if (error) throw new Error(`Error obteniendo usuarios: ${error.message}`);
+
+  return (data ?? []).map((u) => mapUsuario(u));
 }
 
 export async function obtenerUsuarioPorId(id: string): Promise<Usuario | null> {
@@ -60,24 +102,14 @@ export async function obtenerUsuarioPorId(id: string): Promise<Usuario | null> {
   const { data, error } = await supabaseAdmin
     .from("usuarios")
     .select(
-      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo"
+      "id, nombre, correo, area, minutos_comida, legajo, etiqueta_nfc, activo, token_prefijo, jornada_inicio, jornada_fin, sabado_trabaja, sabado_inicio, sabado_fin, sabado_minutos_comida"
     )
     .eq("id", id)
     .single();
 
   if (error || !data) return null;
 
-  return {
-    id: data.id,
-    nombre: data.nombre,
-    correo: data.correo,
-    area: data.area as Usuario["area"],
-    minutosComida: data.minutos_comida ?? 60,
-    legajo: data.legajo ?? null,
-    etiquetaNfc: data.etiqueta_nfc ?? null,
-    activo: data.activo,
-    tokenPrefijo: data.token_prefijo ?? null,
-  };
+  return mapUsuario(data);
 }
 
 /* ===================================================================== */

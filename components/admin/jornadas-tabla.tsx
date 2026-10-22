@@ -2,26 +2,26 @@
 
 /**
  * Tabla de jornadas por colaborador con buscador y filtro por área.
+ *
+ * El botón "Editar" abre el modal de configuración de horario.
  */
 import { useMemo, useState } from "react";
+import type { ColaboradorHorario } from "./horario-colaborador-form";
 
-export interface JornadaFila {
-  usuarioId: string;
-  nombre: string;
-  area: string;
-  legajo: number | null;
-  minutosComida: number;
-  lunesAViernes: string;
-  sabado: string;
-  sabadoDescanso: boolean;
-  tieneEspeciales: boolean;
-}
+export type JornadaFila = ColaboradorHorario;
 
 export interface JornadasTablaProps {
   filas: JornadaFila[];
+  esAdmin: boolean;
+  /** Abre el modal de configuración para el colaborador indicado. */
+  onEditar: (usuarioId: string) => void;
 }
 
-export function JornadasTabla({ filas }: JornadasTablaProps): JSX.Element {
+export function JornadasTabla({
+  filas,
+  esAdmin,
+  onEditar,
+}: JornadasTablaProps): JSX.Element {
   const [busqueda, setBusqueda] = useState("");
   const [filtroArea, setFiltroArea] = useState<"Todos" | "Oficina" | "Técnico">(
     "Todos"
@@ -106,7 +106,7 @@ export function JornadasTabla({ filas }: JornadasTablaProps): JSX.Element {
               )}
 
               {filtradas.map((f) => (
-                <tr key={f.usuarioId}>
+                <tr key={f.id}>
                   <td className="max-w-[190px]">
                     <p
                       className="truncate font-semibold text-ink"
@@ -146,12 +146,28 @@ export function JornadasTabla({ filas }: JornadasTablaProps): JSX.Element {
                     )}
                   </td>
                   <td className="whitespace-nowrap text-right">
-                    <a
-                      href={`/admin/empleados?empleado=${f.usuarioId}`}
-                      className="u-btn u-btn-secondary u-btn-sm"
-                    >
-                      Editar
-                    </a>
+                    <div className="flex items-center justify-end gap-2">
+                      <a
+                        href={`/admin/personas/${f.id}`}
+                        className="u-btn u-btn-ghost u-btn-sm"
+                        title="Ver la ficha de este colaborador"
+                      >
+                        Ficha
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => onEditar(f.id)}
+                        disabled={!esAdmin}
+                        className="u-btn u-btn-secondary u-btn-sm"
+                        title={
+                          esAdmin
+                            ? "Configurar el horario de este colaborador"
+                            : "Solo los administradores pueden configurar horarios"
+                        }
+                      >
+                        Editar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

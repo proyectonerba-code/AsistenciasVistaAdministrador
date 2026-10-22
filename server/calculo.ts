@@ -115,6 +115,13 @@ export function calcularDiaDeUsuario(
     horarioEspecial,
     horariosPorArea: ctx.config.horariosPorArea,
     horarioSabado: ctx.config.horarioSabado,
+    jornadaUsuario: {
+      jornadaInicio: usuario.jornadaInicio,
+      jornadaFin: usuario.jornadaFin,
+      sabadoTrabaja: usuario.sabadoTrabaja,
+      sabadoInicio: usuario.sabadoInicio,
+      sabadoFin: usuario.sabadoFin,
+    },
   });
 
   return calcularDia({
@@ -128,6 +135,7 @@ export function calcularDiaDeUsuario(
         }
       : null,
     minutosComida: usuario.minutosComida,
+    minutosComidaSabado: usuario.sabadoMinutosComida,
     horarioReferencia: horario,
     minEntreMarcas: ctx.config.minEntreMarcas,
     minutosMinimosComida: ctx.config.minutosMinimosComida,
