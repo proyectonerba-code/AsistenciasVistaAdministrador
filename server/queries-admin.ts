@@ -318,6 +318,60 @@ export async function obtenerFaltas(
 }
 
 /* ===================================================================== */
+/* Dispositivos (celulares/tablets asignados a un colaborador)          */
+/* ===================================================================== */
+
+export interface DispositivoAdmin {
+  id: string;
+  usuarioId: string;
+  nombre: string;
+  area: string;
+  huella: string;
+  etiqueta: string | null;
+  agente: string | null;
+  primeraMarca: Date;
+  ultimaMarca: Date;
+  veces: number;
+  activo: boolean;
+}
+
+/**
+ * Todos los dispositivos registrados, del más reciente al más antiguo.
+ */
+export async function obtenerDispositivos(): Promise<DispositivoAdmin[]> {
+  const { data, error } = await supabaseAdmin
+    .from("dispositivos")
+    .select(
+      "id, usuario_id, huella, etiqueta, agente, primera_marca, ultima_marca, veces, activo"
+    )
+    .order("ultima_marca", { ascending: false });
+
+  if (error) {
+    throw new Error(`Error obteniendo dispositivos: ${error.message}`);
+  }
+
+  const usuarios = await obtenerUsuarios(true);
+  const porId = new Map(usuarios.map((u) => [u.id, u]));
+
+  return (data ?? []).map((d) => {
+    const u = porId.get(d.usuario_id);
+    return {
+      id: d.id,
+      usuarioId: d.usuario_id,
+      nombre: u?.nombre ?? "—",
+      area: u?.area ?? "Sin asignar",
+      huella: d.huella,
+      etiqueta: d.etiqueta ?? null,
+      agente: d.agente ?? null,
+      primeraMarca: new Date(d.primera_marca),
+      ultimaMarca: new Date(d.ultima_marca),
+      veces: d.veces ?? 0,
+      activo: d.activo !== false,
+    };
+  });
+}
+
+/* ===================================================================== */
 /* Bitácora                                                             */
 /* ===================================================================== */
 

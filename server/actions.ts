@@ -648,6 +648,46 @@ export async function quitarFalta(
 }
 
 /* ===================================================================== */
+/* Dispositivos                                                          */
+/* ===================================================================== */
+
+/**
+ * Revoca (desactiva) el vínculo de un dispositivo con su persona.
+ * El teléfono vuelve a pedir identificación en la terminal.
+ */
+export async function revocarDispositivo(
+  dispositivoId: string
+): Promise<{ ok?: boolean; error?: string }> {
+  const sesion = await requireAdminDesdeCookies();
+
+  const { data: existente } = await supabaseAdmin
+    .from("dispositivos")
+    .select("id, usuario_id, activo")
+    .eq("id", dispositivoId)
+    .maybeSingle();
+
+  if (!existente) return { error: "Dispositivo no encontrado." };
+
+  const { error } = await supabaseAdmin
+    .from("dispositivos")
+    .update({ activo: false })
+    .eq("id", dispositivoId);
+
+  if (error) return { error: "No se pudo revocar el dispositivo." };
+
+  await escribirBitacora(
+    sesion.correo,
+    "revocar_dispositivo",
+    "dispositivos",
+    existente.usuario_id,
+    { dispositivo_id: dispositivoId, activo: true },
+    { dispositivo_id: dispositivoId, activo: false }
+  );
+
+  return { ok: true };
+}
+
+/* ===================================================================== */
 /* Configuración del sistema                                             */
 /* ===================================================================== */
 

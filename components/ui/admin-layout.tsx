@@ -20,6 +20,7 @@ const SECCIONES = [
   { href: "/admin/asistencia", texto: "Asistencia y Registros" },
   { href: "/admin/empleados", texto: "Empleados" },
   { href: "/admin/horarios", texto: "Horarios" },
+  { href: "/admin/dispositivos", texto: "Dispositivos" },
 ];
 
 const SECCIONES_SECUNDARIAS = [

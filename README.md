@@ -18,6 +18,7 @@ y **Horarios Especiales**.
 | `/admin/asistencia` | **Registros del Día** (en vivo, editable) + **Reporte General de la Semana**. |
 | `/admin/empleados` | Catálogo de trabajadores, horas de la semana y ficha individual. Exporta CSV. |
 | `/admin/horarios` | Jornada por colaborador + **horarios especiales** por persona, día y vigencia. |
+| `/admin/dispositivos` | Qué celular/tablet usa cada colaborador. Permite **revocar** el vínculo. |
 | `/admin/pendientes` | Entradas abiertas sin salida. Nunca se cierran solas. |
 | `/admin/rechazados` | Auditoría de checadas no aceptadas, con motivo y coordenadas. |
 | `/admin/personas/[id]` | Ficha individual con el detalle semana por semana. |
@@ -35,6 +36,9 @@ y **Horarios Especiales**.
 - **Rotación de token**: invalida la credencial anterior de una tarjeta.
 - **Horarios especiales**: reglas por persona, día de la semana y vigencia. Si hay
   varias vigentes, gana la de *“vigente desde”* más reciente.
+- **Dispositivos**: en la terminal compartida, cada celular queda vinculado a la
+  persona que se identificó desde él. Aquí se ve quién usa qué equipo y se
+  puede revocar (el teléfono vuelve a pedir identificación).
 - **Exportes**: Excel (`.xlsx`), PDF e informe de empleados en CSV.
 - **Bitácora**: toda edición del panel queda registrada con actor, entidad y
   valores antes/después.
