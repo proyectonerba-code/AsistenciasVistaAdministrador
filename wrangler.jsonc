@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "asistencias-panel",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://mkpknuszfxivtfqdexii.supabase.co",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1rcGtudXN6ZnhpdnRmcWRleGlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI1OTE5NDksImV4cCI6MjEwODE2Nzk0OX0.yehq9GYIFTpDVLdWz43u-WBfpKngeVPQ0Yvl462GfL8",
+    "SUPABASE_DEMO": "0",
+    "SESSION_SECRET": "f4f7c8ec1df1494dbf729730534372e2",
+    "ADMIN_ALERT_EMAIL": "marionly420@gmail.com",
+    "NEXT_PUBLIC_REGISTRO_URL": "https://asistencias-registro.proyectonerba.workers.dev",
+    "TZ": "America/Mexico_City",
+    "SUPABASE_URL": "https://mkpknuszfxivtfqdexii.supabase.co"
+  }
+}

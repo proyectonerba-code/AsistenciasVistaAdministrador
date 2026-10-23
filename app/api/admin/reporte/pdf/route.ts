@@ -1,9 +1,12 @@
 /**
  * GET /api/admin/reporte/pdf?semana=YYYY-MM-DD
  * Exporta el reporte semanal a PDF. Solo admin.
+ *
+ * Se usa `pdf-lib` (JS puro) en lugar de `pdfkit` porque `pdfkit` depende de
+ * `fs` para leer sus fuentes AFM y eso no existe en Cloudflare Workers.
  */
 import { NextRequest, NextResponse } from "next/server";
-import PDFDocument from "pdfkit";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { obtenerSesion } from "@/server/auth";
 import { obtenerReporteSemana } from "@/server/reporte";
 import { minutosAHHMM } from "@/lib/tz";
@@ -12,6 +15,81 @@ import { z } from "zod";
 export const runtime = "nodejs";
 
 const FechaSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+
+const ANCHO = 612; // LETTER
+const ALTO = 792;
+const MARGEN = 40;
+const ANCHO_TABLA = 465;
+
+interface Columna {
+  titulo: string;
+  ancho: number;
+}
+
+const COLUMNAS: Columna[] = [
+  { titulo: "Trabajador", ancho: 150 },
+  { titulo: "Área", ancho: 80 },
+  { titulo: "Trabajadas", ancho: 75 },
+  { titulo: "Extra", ancho: 60 },
+  { titulo: "Asist.", ancho: 50 },
+  { titulo: "Faltas", ancho: 50 },
+];
+
+/** Recorta el texto para que quepa en el ancho indicado. */
+function ajustar(texto: string, font: PDFFont, size: number, ancho: number): string {
+  if (font.widthOfTextAtSize(texto, size) <= ancho) return texto;
+  let recortado = texto;
+  while (recortado.length > 1 && font.widthOfTextAtSize(`${recortado}…`, size) > ancho) {
+    recortado = recortado.slice(0, -1);
+  }
+  return `${recortado}…`;
+}
+
+function dibujarEncabezado(
+  page: PDFPage,
+  bold: PDFFont,
+  y: number
+): number {
+  page.drawRectangle({
+    x: MARGEN,
+    y: y - 4,
+    width: ANCHO_TABLA,
+    height: 18,
+    color: rgb(0.1, 0.1, 0.1),
+  });
+  let x = MARGEN;
+  for (const col of COLUMNAS) {
+    page.drawText(ajustar(col.titulo, bold, 9, col.ancho - 8), {
+      x: x + 4,
+      y: y + 1,
+      size: 9,
+      font: bold,
+      color: rgb(1, 1, 1),
+    });
+    x += col.ancho;
+  }
+  return y - 20;
+}
+
+function dibujarFila(
+  page: PDFPage,
+  font: PDFFont,
+  valores: string[],
+  y: number
+): number {
+  let x = MARGEN;
+  for (let i = 0; i < COLUMNAS.length; i++) {
+    page.drawText(ajustar(valores[i] ?? "", font, 9, COLUMNAS[i].ancho - 8), {
+      x: x + 4,
+      y,
+      size: 9,
+      font,
+      color: rgb(0, 0, 0),
+    });
+    x += COLUMNAS[i].ancho;
+  }
+  return y - 14;
+}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const sesion = await obtenerSesion();
@@ -38,79 +116,62 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   );
   const reporte = await obtenerReporteSemana(lunes);
 
-  const doc = new PDFDocument({ size: "LETTER", margin: 40 });
-  const chunks: Buffer[] = [];
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
-  const terminado = new Promise<Buffer>((resolve) => {
-    doc.on("data", (chunk: Buffer) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
+  let page = pdf.addPage([ANCHO, ALTO]);
+
+  page.drawText("REPORTE GENERAL DE ASISTENCIA", {
+    x: MARGEN,
+    y: ALTO - 60,
+    size: 16,
+    font: bold,
+    color: rgb(0, 0, 0),
+  });
+  page.drawText(`Semana del ${reporte.lunes} al ${reporte.sabado}`, {
+    x: MARGEN,
+    y: ALTO - 80,
+    size: 11,
+    font,
+    color: rgb(0.2, 0.2, 0.2),
   });
 
-  doc.fontSize(16).font("Helvetica-Bold");
-  doc.text(`REPORTE GENERAL DE ASISTENCIA`, { align: "center" });
-  doc.moveDown(0.3);
-  doc.fontSize(11).font("Helvetica");
-  doc.text(`Semana del ${reporte.lunes} al ${reporte.sabado}`, {
-    align: "center",
-  });
-  doc.moveDown(1);
+  let y = dibujarEncabezado(page, bold, ALTO - 110);
 
-  const columnas = [
-    { titulo: "Trabajador", ancho: 150 },
-    { titulo: "Área", ancho: 80 },
-    { titulo: "Trabajadas", ancho: 75 },
-    { titulo: "Extra", ancho: 60 },
-    { titulo: "Asist.", ancho: 50 },
-    { titulo: "Faltas", ancho: 50 },
-  ];
-
-  const dibujarEncabezado = () => {
-    const y = doc.y;
-    doc.font("Helvetica-Bold").fontSize(9);
-    let x = doc.page.margins.left;
-    doc.rect(x, y - 2, 465, 18).fill("#1a1a1a");
-    doc.fillColor("#ffffff");
-    for (const col of columnas) {
-      doc.text(col.titulo, x + 4, y + 4, { width: col.ancho - 8, ellipsis: true });
-      x += col.ancho;
-    }
-    doc.fillColor("#000000");
-    doc.y = y + 20;
-  };
-
-  dibujarEncabezado();
-
-  doc.font("Helvetica").fontSize(9);
   for (const fila of reporte.filas) {
-    const y = doc.y;
-    if (y > doc.page.height - 80) {
-      doc.addPage();
-      dibujarEncabezado();
-      doc.font("Helvetica").fontSize(9);
+    if (y < 80) {
+      page = pdf.addPage([ANCHO, ALTO]);
+      y = dibujarEncabezado(page, bold, ALTO - 60);
     }
-    const valores = [
-      fila.nombre,
-      fila.area,
-      minutosAHHMM(fila.trabajadasMin),
-      minutosAHHMM(fila.extraMin),
-      String(fila.asistencias),
-      String(fila.faltas),
-    ];
-    let x = doc.page.margins.left;
-    for (let i = 0; i < columnas.length; i++) {
-      doc.text(valores[i], x + 4, doc.y, {
-        width: columnas[i].ancho - 8,
-        ellipsis: true,
-      });
-      x += columnas[i].ancho;
-    }
-    doc.moveDown(0.35);
+    y = dibujarFila(
+      page,
+      font,
+      [
+        fila.nombre,
+        fila.area,
+        minutosAHHMM(fila.trabajadasMin),
+        minutosAHHMM(fila.extraMin),
+        String(fila.asistencias),
+        String(fila.faltas),
+      ],
+      y
+    );
   }
 
-  doc.moveDown(0.5);
-  const yTotal = doc.y;
-  doc.rect(doc.page.margins.left, yTotal - 2, 465, 18).fill("#3d0000");
-  doc.fillColor("#ffffff").font("Helvetica-Bold").fontSize(9);
+  if (y < 80) {
+    page = pdf.addPage([ANCHO, ALTO]);
+    y = ALTO - 60;
+  }
+
+  page.drawRectangle({
+    x: MARGEN,
+    y: y - 4,
+    width: ANCHO_TABLA,
+    height: 18,
+    color: rgb(0.24, 0, 0),
+  });
+  let x = MARGEN;
   const totales = [
     "TOTAL GENERAL",
     "",
@@ -119,20 +180,20 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     String(reporte.total.asistencias),
     String(reporte.total.faltas),
   ];
-  let x = doc.page.margins.left;
-  for (let i = 0; i < columnas.length; i++) {
-    doc.text(totales[i], x + 4, yTotal + 4, {
-      width: columnas[i].ancho - 8,
-      ellipsis: true,
+  for (let i = 0; i < COLUMNAS.length; i++) {
+    page.drawText(ajustar(totales[i], bold, 9, COLUMNAS[i].ancho - 8), {
+      x: x + 4,
+      y: y + 1,
+      size: 9,
+      font: bold,
+      color: rgb(1, 1, 1),
     });
-    x += columnas[i].ancho;
+    x += COLUMNAS[i].ancho;
   }
-  doc.fillColor("#000000");
 
-  doc.end();
-  const buffer = await terminado;
+  const bytes = await pdf.save();
 
-  return new NextResponse(buffer as unknown as BodyInit, {
+  return new NextResponse(new Uint8Array(bytes) as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="reporte-${reporte.lunes}.pdf"`,
