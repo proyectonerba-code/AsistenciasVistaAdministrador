@@ -28,7 +28,7 @@ const PASSWORD_DEMO = "demo1234";
  */
 export async function obtenerSesion(): Promise<SesionAdmin | null> {
   if (esDemo()) {
-    const correo = cookies().get(COOKIE_DEMO)?.value;
+    const correo = (await cookies()).get(COOKIE_DEMO)?.value;
     if (!correo) return null;
     const rol = await obtenerRol(correo);
     if (!rol) return null;
@@ -36,7 +36,7 @@ export async function obtenerSesion(): Promise<SesionAdmin | null> {
   }
 
   try {
-    const supabase = crearSupabaseServerClient();
+    const supabase = await crearSupabaseServerClient();
     const { data, error } = await supabase.auth.getUser();
 
     if (error || !data.user) return null;
@@ -90,7 +90,7 @@ export async function login(
         mensaje: "Tu correo no tiene acceso al panel de administración.",
       };
     }
-    cookies().set(COOKIE_DEMO, correo, {
+    (await cookies()).set(COOKIE_DEMO, correo, {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
@@ -100,7 +100,7 @@ export async function login(
     return { ok: true, sesion: { correo, rol } };
   }
 
-  const supabase = crearSupabaseServerClient();
+  const supabase = await crearSupabaseServerClient();
 
   const { data, error } = await supabase.auth.signInWithPassword({
     email: correo,
@@ -130,11 +130,11 @@ export async function login(
  */
 export async function logout(): Promise<void> {
   if (esDemo()) {
-    cookies().delete(COOKIE_DEMO);
+    (await cookies()).delete(COOKIE_DEMO);
     return;
   }
   try {
-    const supabase = crearSupabaseServerClient();
+    const supabase = await crearSupabaseServerClient();
     await supabase.auth.signOut();
   } catch {
     // Si falla, la cookie se ignora: el layout volverá a validar la sesión.

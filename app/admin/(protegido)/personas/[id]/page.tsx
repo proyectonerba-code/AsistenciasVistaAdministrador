@@ -9,7 +9,7 @@ import { PersonaSemana } from "@/components/ui/persona-semana";
 export default async function PersonaPage({
   params,
 }: {
-  params: { id: string } | Promise<{ id: string }>;
+  params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
   const ficha = await obtenerSemanasDePersona(id, 6);
