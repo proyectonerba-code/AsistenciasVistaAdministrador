@@ -339,7 +339,7 @@ export async function obtenerFaltas(
 
 export interface DispositivoAdmin {
   id: string;
-  usuarioId: string;
+  usuarioId: string | null;
   nombre: string;
   area: string;
   huella: string;
@@ -349,6 +349,7 @@ export interface DispositivoAdmin {
   ultimaMarca: Date;
   veces: number;
   activo: boolean;
+  estado: "pendiente" | "activo" | "revocado";
 }
 
 /**
@@ -358,7 +359,7 @@ export async function obtenerDispositivos(): Promise<DispositivoAdmin[]> {
   const { data, error } = await supabaseAdmin
     .from("dispositivos")
     .select(
-      "id, usuario_id, huella, etiqueta, agente, primera_marca, ultima_marca, veces, activo"
+      "id, usuario_id, huella, etiqueta, agente, primera_marca, ultima_marca, veces, activo, estado"
     )
     .order("ultima_marca", { ascending: false });
 
@@ -383,6 +384,7 @@ export async function obtenerDispositivos(): Promise<DispositivoAdmin[]> {
       ultimaMarca: new Date(d.ultima_marca),
       veces: d.veces ?? 0,
       activo: d.activo !== false,
+      estado: d.estado ?? (d.activo ? "activo" : "revocado"),
     };
   });
 }

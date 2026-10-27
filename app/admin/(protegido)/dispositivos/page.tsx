@@ -2,12 +2,13 @@
  * /admin/dispositivos — celulares y tablets asignados a cada colaborador.
  */
 import { obtenerSesion } from "@/server/auth";
-import { obtenerDispositivos } from "@/server/queries-admin";
+import { obtenerDispositivos, obtenerUsuarios } from "@/server/queries-admin";
 import { DispositivosTabla } from "@/components/admin/dispositivos-tabla";
+import { NipEnrolamiento } from "@/components/admin/nip-enrolamiento";
 
 export default async function DispositivosPage() {
   const sesion = await obtenerSesion();
-  const dispositivos = await obtenerDispositivos();
+  const [dispositivos, usuarios] = await Promise.all([obtenerDispositivos(), obtenerUsuarios()]);
 
   return (
     <div className="space-y-6">
@@ -28,6 +29,7 @@ export default async function DispositivosPage() {
         </span>
       </header>
 
+      {sesion?.rol === "admin" && <NipEnrolamiento />}
       <DispositivosTabla
         filas={dispositivos.map((d) => ({
           id: d.id,
@@ -41,7 +43,9 @@ export default async function DispositivosPage() {
           ultimaMarca: d.ultimaMarca.toISOString(),
           veces: d.veces,
           activo: d.activo,
+          estado: d.estado,
         }))}
+        trabajadores={usuarios.filter((u) => u.activo).map((u) => ({ id: u.id, nombre: u.nombre, area: u.area }))}
         esAdmin={sesion?.rol === "admin"}
       />
     </div>

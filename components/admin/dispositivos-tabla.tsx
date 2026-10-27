@@ -6,11 +6,11 @@
  */
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { revocarDispositivo } from "@/server/actions";
+import { asignarDispositivo, revocarDispositivo } from "@/server/actions";
 
 export interface DispositivoFila {
   id: string;
-  usuarioId: string;
+  usuarioId: string | null;
   nombre: string;
   area: string;
   huella: string;
@@ -20,10 +20,12 @@ export interface DispositivoFila {
   ultimaMarca: string;
   veces: number;
   activo: boolean;
+  estado: "pendiente" | "activo" | "revocado";
 }
 
 export interface DispositivosTablaProps {
   filas: DispositivoFila[];
+  trabajadores: { id: string; nombre: string; area: string }[];
   esAdmin: boolean;
 }
 
@@ -44,6 +46,7 @@ function fecha(iso: string): string {
 
 export function DispositivosTabla({
   filas,
+  trabajadores,
   esAdmin,
 }: DispositivosTablaProps): JSX.Element {
   const router = useRouter();
@@ -89,6 +92,14 @@ export function DispositivosTabla({
     router.refresh();
   };
 
+  const asignar = async (id: string, usuarioId: string) => {
+    setOcupado(id); setMensaje(null);
+    const resultado = await asignarDispositivo(id, usuarioId);
+    setOcupado(null);
+    if (resultado.error) { setMensaje({ texto: resultado.error, error: true }); return; }
+    setMensaje({ texto: "Dispositivo asignado al colaborador." }); router.refresh();
+  };
+
   return (
     <div className="space-y-4">
       <div className="u-card flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -121,11 +132,12 @@ export function DispositivosTabla({
         <div className="flex items-center gap-2">
           <span className="u-badge u-badge-success">
             <span className="u-dot" />
-            {filas.filter((f) => f.activo).length} activos
+            {filas.filter((f) => f.estado === "activo").length} activos
           </span>
-          {filas.filter((f) => !f.activo).length > 0 && (
+          {filas.filter((f) => f.estado === "pendiente").length > 0 && <span className="u-badge u-badge-neutral">{filas.filter((f) => f.estado === "pendiente").length} pendientes</span>}
+          {filas.filter((f) => f.estado === "revocado").length > 0 && (
             <span className="u-badge u-badge-neutral">
-              {filas.filter((f) => !f.activo).length} revocados
+              {filas.filter((f) => f.estado === "revocado").length} revocados
             </span>
           )}
         </div>
@@ -196,16 +208,24 @@ export function DispositivosTabla({
                   <td className="whitespace-nowrap">
                     <span
                       className={`u-badge ${
-                        f.activo ? "u-badge-success" : "u-badge-neutral"
+                      f.estado === "activo" ? "u-badge-success" : "u-badge-neutral"
                       }`}
                     >
                       <span className="u-dot" />
-                      {f.activo ? "Activo" : "Revocado"}
+                      {f.estado === "activo" ? "Activo" : f.estado === "pendiente" ? "Pendiente" : "Revocado"}
                     </span>
                   </td>
                   {esAdmin && (
                     <td className="whitespace-nowrap text-right">
-                      {f.activo ? (
+                      {f.estado === "pendiente" ? (
+                        <div className="flex justify-end gap-2">
+                          <select className="u-input max-w-52" aria-label={`Asignar ${f.etiqueta ?? "dispositivo"}`} defaultValue="" id={`asignar-${f.id}`}>
+                            <option value="" disabled>Elegir colaborador…</option>
+                            {trabajadores.map((t) => <option key={t.id} value={t.id}>{t.nombre} · {t.area}</option>)}
+                          </select>
+                          <button type="button" onClick={() => { const value = (document.getElementById(`asignar-${f.id}`) as HTMLSelectElement | null)?.value; if (value) void asignar(f.id, value); else setMensaje({ texto: "Selecciona un colaborador.", error: true }); }} disabled={ocupado === f.id} className="u-btn u-btn-primary u-btn-sm">{ocupado === f.id ? "Asignando…" : "Asignar"}</button>
+                        </div>
+                      ) : f.activo ? (
                         <button
                           type="button"
                           onClick={() => revocar(f.id)}
