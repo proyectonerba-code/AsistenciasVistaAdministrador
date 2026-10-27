@@ -807,6 +807,37 @@ export async function revocarDispositivo(
   return { ok: true };
 }
 
+/** Guarda el hash del NIP compartido que se solicita al enrolar un celular. */
+export async function guardarNipEnrolamiento(pin: string): Promise<ResultadoAccion> {
+  const sesion = await requireAdminDesdeCookies();
+  if (!/^\d{4}$/.test(pin)) return { error: "El NIP debe tener exactamente cuatro dígitos." };
+  const pepper = process.env.PIN_PEPPER;
+  if (!pepper) return { error: "Falta configurar PIN_PEPPER en el backend." };
+  const valor = await sha256Hex(`${pepper}:${pin}`);
+  const { error } = await supabaseAdmin.from("config").upsert(
+    { clave: "pin_enrolamiento_hash", valor, actualizado_en: new Date().toISOString() },
+    { onConflict: "clave" }
+  );
+  if (error) return { error: "No se pudo guardar el NIP." };
+  await escribirBitacora(sesion.correo, "actualizar_nip_enrolamiento", "config", null, null, { clave: "pin_enrolamiento_hash" });
+  return { ok: true };
+}
+
+/** Asigna el celular pendiente y revoca cualquier otro dispositivo activo de esa persona. */
+export async function asignarDispositivo(dispositivoId: string, usuarioId: string): Promise<ResultadoAccion> {
+  const sesion = await requireAdminDesdeCookies();
+  if (!z.string().uuid().safeParse(dispositivoId).success || !z.string().uuid().safeParse(usuarioId).success) {
+    return { error: "Dispositivo o colaborador inválido." };
+  }
+  const { error } = await supabaseAdmin.rpc("asignar_dispositivo", {
+    p_dispositivo_id: dispositivoId,
+    p_usuario_id: usuarioId,
+  });
+  if (error) return { error: error.message.includes("usuario_inactivo") ? "El colaborador está inactivo." : "No se pudo asignar el dispositivo. Actualiza la página e inténtalo de nuevo." };
+  await escribirBitacora(sesion.correo, "asignar_dispositivo", "dispositivos", dispositivoId, null, { dispositivo_id: dispositivoId, usuario_id: usuarioId });
+  return { ok: true };
+}
+
 /* ===================================================================== */
 /* Configuración del sistema                                             */
 /* ===================================================================== */
